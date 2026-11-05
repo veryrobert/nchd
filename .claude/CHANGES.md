@@ -1,6 +1,6 @@
 # Change Log
 
-## 2026-11-05 — Transitions and motion
+## 2026-11-05 — Transitions and motion (reviewed and confirmed for push)
 - Page changes: old screen slides out (direction-aware: forward vs back), new screen's blocks stagger in
 - Shared-element morphs: Home tile titles → Register / Resources headings, and the De-label logo between Home and Dashboard (View Transitions API, graceful fallback)
 - Crossfades for in-page changes: Resources tabs, dashboard period filter, View all / review queue, recording a reaction
