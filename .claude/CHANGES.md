@@ -1,5 +1,9 @@
 # Change Log
 
+## 2026-11-05 — Deploy via GitHub Actions
+- Add .github/workflows/pages.yml (checkout → configure-pages → upload artifact → deploy-pages) on every push to main
+- Switch Pages from the automatic "legacy" build to the workflow, after three legacy deploys timed out on GitHub's side
+
 ## 2026-11-05 — Transitions and motion (reviewed and confirmed for push)
 - Page changes: old screen slides out (direction-aware: forward vs back), new screen's blocks stagger in
 - Shared-element morphs: Home tile titles → Register / Resources headings, and the De-label logo between Home and Dashboard (View Transitions API, graceful fallback)
