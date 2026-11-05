@@ -1,6 +1,6 @@
 # Change Log
 
-## 2026-11-05 — Initial De-label app
+## 2026-11-05 — Initial De-label app (reviewed and confirmed for push)
 - Static app (index.html, styles.css, app.js) built from the Claude Design prototype screens, no build step
 - Home: greeting, live OPC window status, links to Register, Track and Resources
 - Register challenge: MRN/ward, screening sheet (exclusions and stop criteria), drug choice, time given; records a challenge or a stop and referral
