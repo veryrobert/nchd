@@ -1,5 +1,15 @@
 # Change Log
 
+## 2026-11-05 — Transitions and motion
+- Page changes: old screen slides out (direction-aware: forward vs back), new screen's blocks stagger in
+- Shared-element morphs: Home tile titles → Register / Resources headings, and the De-label logo between Home and Dashboard (View Transitions API, graceful fallback)
+- Crossfades for in-page changes: Resources tabs, dashboard period filter, View all / review queue, recording a reaction
+- Protocol accordion expands and collapses smoothly; drug choice animates in place
+- Sheets and toasts animate out instead of vanishing
+- Dashboard numbers count up (from previous values when switching period); outcomes bar grows into place
+- EWS ticks pop, success badge pops, confetti falls in, "You" row pulses on the leaderboard; hover lift on cards
+- All motion disabled under prefers-reduced-motion
+
 ## 2026-11-05 — Initial De-label app (reviewed and confirmed for push)
 - Static app (index.html, styles.css, app.js) built from the Claude Design prototype screens, no build step
 - Home: greeting, live OPC window status, links to Register, Track and Resources

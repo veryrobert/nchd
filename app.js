@@ -170,9 +170,69 @@
   }
   const drugName = (r) => (r.drug ? DRUGS[r.drug].name : "—");
 
+  /* ---------- motion ---------- */
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
+  const DEPTH = { "": 0, register: 1, resources: 1, dashboard: 1, challenge: 2, removed: 3 };
+  const routeName = (h) => (h.replace(/^#\/?/, "").split("/")[0] || "");
+
+  // Run a DOM update inside a view transition when the browser supports it.
+  function transition(kind, update, dir) {
+    const root = document.documentElement;
+    if (!document.startViewTransition || reduceMotion.matches) return update();
+    root.dataset.vt = kind;
+    if (dir) root.dataset.dir = dir;
+    document.startViewTransition(update).finished.finally(() => { delete root.dataset.vt; delete root.dataset.dir; });
+  }
+  const swap = (update) => transition("swap", update);
+
+  // Stagger the new screen's blocks in. Elements with a shared transition name morph instead.
+  function stagger() {
+    if (reduceMotion.matches) return;
+    const scr = $app.querySelector(".screen"); if (!scr) return;
+    const items = [];
+    for (const el of scr.children) {
+      if (el.matches(".kpis, .docs, .drug-grid, .stat-pair")) items.push(...el.children);
+      else if (!el.matches(".vt, .spacer") && !el.querySelector(".vt")) items.push(el);
+    }
+    items.forEach((el, i) => {
+      el.classList.add("rise");
+      el.style.animationDelay = `${Math.min(i, 10) * 45}ms`;
+      el.addEventListener("animationend", function done(e) {
+        if (e.target !== el) return;
+        el.classList.remove("rise"); el.style.animationDelay = "";
+        el.removeEventListener("animationend", done);
+      });
+    });
+  }
+
+  // Count numbers up from their previous value; grow bar segments from theirs.
+  let prevCounts = {};
+  function animateCounts() {
+    const ease = (t) => 1 - Math.pow(1 - t, 3);
+    $app.querySelectorAll(".count").forEach((el) => {
+      const k = el.dataset.k, to = +el.textContent;
+      const from = el.dataset.from != null ? +el.dataset.from : prevCounts[k] ?? 0;
+      prevCounts[k] = to;
+      if (reduceMotion.matches || from === to) return;
+      const start = performance.now(), dur = 700;
+      el.textContent = from;
+      const step = (now) => {
+        const t = Math.min(1, (now - start) / dur);
+        el.textContent = Math.round(from + (to - from) * ease(t));
+        if (t < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    });
+    const segs = $app.querySelectorAll("[data-grow]");
+    segs.forEach((el) => { el.style.flexGrow = prevCounts["bar-" + el.dataset.grow] ?? 0; });
+    if (segs.length) requestAnimationFrame(() => requestAnimationFrame(() => segs.forEach((el) => {
+      el.style.flexGrow = el.dataset.to; prevCounts["bar-" + el.dataset.grow] = +el.dataset.to;
+    })));
+  }
+
   /* ---------- sheet + toast ---------- */
   function sheet(html, onMount) {
-    closeSheet();
+    closeSheet(true);
     const el = document.createElement("div");
     el.className = "sheet-backdrop";
     el.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div>`;
@@ -182,8 +242,13 @@
     onMount && onMount(el);
     return el;
   }
-  function closeSheet() {
-    document.querySelectorAll(".sheet-backdrop").forEach((n) => n.remove());
+  function closeSheet(instant) {
+    document.querySelectorAll(".sheet-backdrop").forEach((n) => {
+      if (instant || reduceMotion.matches) return n.remove();
+      if (n.classList.contains("closing")) return;
+      n.classList.add("closing");
+      setTimeout(() => n.remove(), 220);
+    });
     document.body.style.overflow = "";
   }
   let toastT;
@@ -192,7 +257,8 @@
     const t = document.createElement("div");
     t.className = "toast"; t.textContent = msg; t.setAttribute("role", "status");
     document.body.appendChild(t);
-    clearTimeout(toastT); toastT = setTimeout(() => t.remove(), 2600);
+    clearTimeout(toastT);
+    toastT = setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 200); }, 2600);
   }
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSheet(); });
 
@@ -203,15 +269,15 @@
     const open = opcOpen();
     return `<div class="screen">
       <header class="topbar">
-        <a class="brand" href="#/">${logo}De-label</a>
+        <a class="brand vt" style="view-transition-name:brand" href="#/">${logo}De-label</a>
         <a class="circle-btn" href="#/dashboard" aria-label="Your overview">${ic("user")}</a>
       </header>
       <p class="eyebrow">${greet}</p>
       <h1 class="display">Penicillin allergy de-labelling</h1>
       <div class="status-pill"><span class="dot ${open ? "" : "off"}"></span>OPC window ${open ? "open" : "closed"} · Mon–Fri 8am–4pm</div>
-      <a class="tile t1" href="#/register"><span class="ico">${ic("pill")}</span><span class="arrow">${ic("upright")}</span><span class="label">Register challenge</span></a>
+      <a class="tile t1" href="#/register"><span class="ico">${ic("pill")}</span><span class="arrow">${ic("upright")}</span><span class="label vt" style="view-transition-name:t-register">Register challenge</span></a>
       <a class="tile t2" href="#/dashboard"><span class="ico">${ic("activity")}</span><span class="arrow">${ic("upright")}</span><span class="label">Track de-labelling</span></a>
-      <a class="tile t3" href="#/resources"><span class="ico">${ic("file")}</span><span class="arrow">${ic("upright")}</span><span class="label">Resources</span></a>
+      <a class="tile t3" href="#/resources"><span class="ico">${ic("file")}</span><span class="arrow">${ic("upright")}</span><span class="label vt" style="view-transition-name:t-resources">Resources</span></a>
       <div class="spacer"></div>
       <div class="footer-line"><span class="muted">${ME_ROLE}</span><b>${ME}</b></div>
     </div>`;
@@ -252,7 +318,7 @@
       : `<button class="btn primary" data-act="start" ${el.ok ? "" : "disabled style=\"opacity:.45;cursor:not-allowed\""}>Start challenge ${ic("arrow")}</button>`;
     return `<div class="screen">
       <div class="back-row"><a class="circle-btn" href="#/" aria-label="Back">${ic("left")}</a></div>
-      <h1 class="display">Register challenge</h1>
+      <h1 class="display vt" style="view-transition-name:t-register">Register challenge</h1>
       <p class="muted" style="margin:8px 0 24px">Pre-filled from the patient record.</p>
       <div class="field-scroll">
         <label class="field"><span>MRN</span><input id="f-mrn" inputmode="numeric" autocomplete="off" maxlength="9" value="${esc(fmtMrn(d.mrn))}"></label>
@@ -381,7 +447,7 @@
         else { r.status = "positive"; r.reaction = rx; }
         db.save(); closeSheet();
         toast(rx === "uncertain" ? "Flagged for consultant review" : "Reaction recorded — label stays, refer to immunology");
-        render();
+        swap(render);
       });
     });
   }
@@ -399,7 +465,7 @@
     const colors = ["#c8263a", "#ef8a96", "#ffffff", "#8e1b2d"];
     const confetti = Array.from({ length: 12 }, (_, i) => {
       const w = i % 3 === 0 ? 22 : 14, h = i % 3 === 0 ? 8 : 14;
-      return `<span class="confetti" style="left:${5 + ((i * 37) % 90)}%;top:${8 + ((i * 53) % 70)}%;width:${w}px;height:${h}px;background:${colors[i % 4]};transform:rotate(${i * 33}deg);animation-delay:${(i % 5) * 0.3}s"></span>`;
+      return `<span class="confetti" style="left:${5 + ((i * 37) % 90)}%;top:${8 + ((i * 53) % 70)}%;width:${w}px;height:${h}px;background:${colors[i % 4]};rotate:${i * 33}deg;animation-delay:${(i % 6) * 0.06}s,${0.9 + (i % 5) * 0.3}s"></span>`;
     }).join("");
     const scissors = `<svg viewBox="0 0 120 120" width="120" height="120" aria-hidden="true">
       <path d="M40 30c14-10 30 4 46-6l10 12c-16 10-32-4-46 6z" fill="#e5302a" stroke="#1a0b0d" stroke-width="3" stroke-linejoin="round"/>
@@ -420,7 +486,7 @@
       </section>
       <div class="stat-pair">
         <div><small>Your rank</small><div class="big">#${lb.myRank}</div></div>
-        <div><small class="muted">De-labelled</small><div class="big">${lb.mine}</div></div>
+        <div><small class="muted">De-labelled</small><div class="big"><span class="count" data-k="mine" data-from="${Math.max(0, lb.mine - 1)}">${lb.mine}</span></div></div>
       </div>
       <div class="row between" style="margin:24px 8px 10px"><b style="font-weight:500;font-size:17px">Leaderboard</b><span class="muted" style="font-size:14px">Last 30 days</span></div>
       <div class="board">
@@ -477,12 +543,12 @@
           <span class="ico">${ic(s.icon)}</span><span class="title">${s.title}</span>
           ${s.stop ? `<span class="stop-tag">Yes → stop</span>` : `<span class="chev">${ic("down")}</span>`}
         </button>
-        <div class="acc-body">${body}</div></div>${i === 0 ? '</div><div class="acc">' : ""}`;
+        <div class="acc-body"><div class="acc-inner">${body}</div></div></div>${i === 0 ? '</div><div class="acc">' : ""}`;
     }).join("");
     const docs = DOCS.filter((d) => tab === "protocol" || d.tab === tab);
     return `<div class="screen">
       <div class="back-row"><a class="circle-btn" href="#/" aria-label="Back">${ic("left")}</a><span class="version">Version 1 · review Jan 2029</span></div>
-      <h1 class="display">Resources</h1>
+      <h1 class="display vt" style="view-transition-name:t-resources">Resources</h1>
       <p class="intro">MMUH penicillin allergy de-labelling guideline for in-patients, adapted from the SAPG guidelines 2021.</p>
       <div class="chips" role="tablist">
         ${[["protocol", "Protocol"], ["leaflets", "Leaflets"], ["letters", "Letters"]].map(([k, l]) => `<button class="chip" role="tab" data-act="tab" data-v="${k}" aria-selected="${tab === k}">${l}</button>`).join("")}
@@ -521,20 +587,20 @@
     const rows = view === "queue" ? queue : view === "all" ? challenges : challenges.slice(0, 6);
     const title = view === "queue" ? "Review queue" : view === "all" ? "All challenges" : "Recent challenges";
     const toggle = view === "recent" ? `<button class="link" data-act="view" data-v="all">View all</button>` : `<button class="link" data-act="view" data-v="recent">Show recent</button>`;
-    const seg = (n, cls) => (n ? `<div class="${cls}" style="flex-grow:${n}" title="${n}"></div>` : "");
+    const seg = (n, cls) => (n ? `<div class="${cls}" data-grow="${cls}" data-to="${n}" style="flex-grow:${n}" title="${n}"></div>` : "");
     const when = (r) => (isToday(r.givenAt) ? hm(r.givenAt) : dayLabel(r.givenAt));
     return `<div class="screen wide">
-      <div class="dash-brand"><a class="brand" href="#/">${logo}De-label</a><span class="who">· ${ME}, ${ME_ROLE}</span>
+      <div class="dash-brand"><a class="brand vt" style="view-transition-name:brand" href="#/">${logo}De-label</a><span class="who">· ${ME}, ${ME_ROLE}</span>
         <a class="circle-btn" href="#/" aria-label="Home" style="margin-left:auto">${ic("left")}</a></div>
       <div class="dash-head">
         <h1 class="display" style="font-size:clamp(36px,5vw,60px)">Challenges overview</h1>
         <div class="chips">${[["month", "Month"], ["year", "Year"], ["all", "All time"]].map(([k, l]) => `<button class="chip" data-act="period" data-v="${k}" aria-pressed="${ui.period === k}">${l}</button>`).join("")}</div>
       </div>
       <div class="kpis">
-        <div class="kpi pink hero"><div class="head"><span class="ico">${ic("square")}</span>De-labelled</div><div class="big">${s.pct}%</div><small>${s.negative} of ${s.run} <span class="long">challenges </span>negative</small></div>
-        <div class="kpi"><div class="head"><span class="ico">${ic("pill")}</span><span class="long">Challenges run</span><span class="short">Run</span></div><div class="big">${s.run}</div><small class="long">${s.observing} in observation now</small></div>
-        <div class="kpi red"><div class="head"><span class="ico">${ic("alert")}</span>Reactions${s.ana ? `<span class="tag">${s.ana} severe</span>` : ""}</div><div class="big">${s.positive}</div><small class="long">${s.mild} mild rash · ${s.ana} anaphylaxis</small></div>
-        <div class="kpi"><div class="head"><span class="ico">${ic("ban")}</span><span class="long">Stopped at screening</span><span class="short">Stopped</span></div><div class="big">${s.stopped}</div><small class="long">Referred to immunology</small></div>
+        <div class="kpi pink hero"><div class="head"><span class="ico">${ic("square")}</span>De-labelled</div><div class="big"><span class="count" data-k="pct">${s.pct}</span>%</div><small>${s.negative} of ${s.run} <span class="long">challenges </span>negative</small></div>
+        <div class="kpi"><div class="head"><span class="ico">${ic("pill")}</span><span class="long">Challenges run</span><span class="short">Run</span></div><div class="big"><span class="count" data-k="run">${s.run}</span></div><small class="long">${s.observing} in observation now</small></div>
+        <div class="kpi red"><div class="head"><span class="ico">${ic("alert")}</span>Reactions${s.ana ? `<span class="tag">${s.ana} severe</span>` : ""}</div><div class="big"><span class="count" data-k="pos">${s.positive}</span></div><small class="long">${s.mild} mild rash · ${s.ana} anaphylaxis</small></div>
+        <div class="kpi"><div class="head"><span class="ico">${ic("ban")}</span><span class="long">Stopped at screening</span><span class="short">Stopped</span></div><div class="big"><span class="count" data-k="stopped">${s.stopped}</span></div><small class="long">Referred to immunology</small></div>
       </div>
       <div class="panel outcomes">
         <div class="row between" style="flex-wrap:wrap"><h3>Outcomes</h3>
@@ -582,16 +648,21 @@
       default: return NotFound();
     }
   }
-  function render() { $app.innerHTML = route(); tick(); }
+  function render() { $app.innerHTML = route(); tick(); animateCounts(); }
 
   let lastPath = location.hash;
   window.addEventListener("hashchange", () => {
-    closeSheet();
+    closeSheet(true);
     if (!location.hash.startsWith("#/register")) ui.draft = null;
     if (!location.hash.startsWith("#/dashboard")) ui.recView = "recent";
-    render();
-    if (location.hash !== lastPath) window.scrollTo(0, 0);
+    const from = DEPTH[routeName(lastPath)] ?? 1, to = DEPTH[routeName(location.hash)] ?? 1;
+    const changed = location.hash !== lastPath;
     lastPath = location.hash;
+    transition("route", () => {
+      prevCounts = {};
+      render();
+      if (changed) { window.scrollTo(0, 0); stagger(); }
+    }, to >= from ? "fwd" : "back");
   });
 
   /* ---------- events ---------- */
@@ -619,7 +690,10 @@
     const r = id && byId(id);
 
     switch (act) {
-      case "drug": readDraftInputs(); ui.draft.drug = b.dataset.v; render(); break;
+      case "drug":
+        readDraftInputs(); ui.draft.drug = b.dataset.v;
+        $app.querySelectorAll('[data-act="drug"]').forEach((n) => n.setAttribute("aria-pressed", n === b));
+        break;
       case "eligibility": readDraftInputs(); openEligibility(); break;
       case "start": {
         readDraftInputs();
@@ -645,6 +719,7 @@
         r.checks = r.checks || {};
         r.checks[b.dataset.m] = !r.checks[b.dataset.m];
         db.save(); b.setAttribute("aria-pressed", !!r.checks[b.dataset.m]); tick();
+        if (r.checks[b.dataset.m]) { const t = b.querySelector(".tick"); t.classList.remove("pop"); void t.offsetWidth; t.classList.add("pop"); }
         break;
       case "negative": {
         const left = Math.ceil((r.givenAt + OBS_MIN * MIN - Date.now()) / MIN);
@@ -659,16 +734,23 @@
       case "reaction": reactionSheet(r); break;
       case "resolve-neg": markNegative(r); break;
       case "resolve-pos": reactionSheet(r); break;
-      case "tab": ui.resTab = b.dataset.v; render(); break;
-      case "acc": { const k = b.dataset.id; ui.open.has(k) ? ui.open.delete(k) : ui.open.add(k); render(); break; }
+      case "tab": if (ui.resTab !== b.dataset.v) { ui.resTab = b.dataset.v; swap(render); } break;
+      case "acc": {
+        const k = b.dataset.id, open = !ui.open.has(k);
+        open ? ui.open.add(k) : ui.open.delete(k);
+        b.closest(".acc-item").classList.toggle("open", open);
+        b.setAttribute("aria-expanded", open);
+        break;
+      }
       case "doc": toast("Document not attached in this prototype"); break;
       case "anaphylaxis": anaphylaxisSheet(); break;
-      case "period": ui.period = b.dataset.v; render(); break;
-      case "view": ui.recView = b.dataset.v; render(); if (b.dataset.v === "queue") document.querySelector(".dash-grid")?.scrollIntoView({ behavior: "smooth", block: "start" }); break;
-      case "reset": state = { records: seed() }; db.save(); toast("Sample data reset"); render(); break;
+      case "period": if (ui.period !== b.dataset.v) { ui.period = b.dataset.v; swap(render); } break;
+      case "view": ui.recView = b.dataset.v; swap(render); if (b.dataset.v === "queue") document.querySelector(".dash-grid")?.scrollIntoView({ behavior: "smooth", block: "start" }); break;
+      case "reset": state = { records: seed() }; db.save(); toast("Sample data reset"); prevCounts = {}; swap(render); break;
     }
   });
 
   setInterval(tick, 10000);
   render();
+  stagger();
 })();
