@@ -1,5 +1,12 @@
 # Change Log
 
+## 2026-11-06 — Confetti and svh-safe research study dock
+- Canvas confetti burst when a negative result is recorded (Label removed): from the medal plus two side cannons, brand colours, stays inside the phone frame, cleans up after ~4s, skipped under reduced motion
+- Screen heights use svh (small viewport) instead of dvh so nothing sits behind mobile browser bars
+- Label removed is exactly 100svh tall and scrolls internally; the research study card and Done button are docked to the bottom and slide up after the confetti
+- Celebration hero (medal and spacing) scales with viewport height; compact dock under 700px tall
+- Decorative confetti dots kept clear of the close button and status bar
+
 ## 2026-11-06 — Desktop phone frame (reviewed and confirmed for push)
 - On desktop (≥800px wide), phone screens sit in a phone frame (bezel, Dynamic Island, live clock status bar) on a dark warm gradient backdrop
 - Wide screens (≥1100px) add an intro panel beside the phone with "Open dashboard" / "App home" links
@@ -11,13 +18,3 @@
 ## 2026-11-05 — Deploy via GitHub Actions (reviewed and confirmed for push)
 - Add .github/workflows/pages.yml (checkout → configure-pages → upload artifact → deploy-pages) on every push to main
 - Switch Pages from the automatic "legacy" build to the workflow, after three legacy deploys timed out on GitHub's side
-
-## 2026-11-05 — Transitions and motion (reviewed and confirmed for push)
-- Page changes: old screen slides out (direction-aware: forward vs back), new screen's blocks stagger in
-- Shared-element morphs: Home tile titles → Register / Resources headings, and the De-label logo between Home and Dashboard (View Transitions API, graceful fallback)
-- Crossfades for in-page changes: Resources tabs, dashboard period filter, View all / review queue, recording a reaction
-- Protocol accordion expands and collapses smoothly; drug choice animates in place
-- Sheets and toasts animate out instead of vanishing
-- Dashboard numbers count up (from previous values when switching period); outcomes bar grows into place
-- EWS ticks pop, success badge pops, confetti falls in, "You" row pulses on the leaderboard; hover lift on cards
-- All motion disabled under prefers-reduced-motion

@@ -193,7 +193,7 @@
     const items = [];
     for (const el of scr.children) {
       if (el.matches(".kpis, .docs, .drug-grid, .stat-pair")) items.push(...el.children);
-      else if (!el.matches(".vt, .spacer") && !el.querySelector(".vt")) items.push(el);
+      else if (!el.matches(".vt, .spacer, .dock") && !el.querySelector(".vt")) items.push(el);
     }
     items.forEach((el, i) => {
       el.classList.add("rise");
@@ -229,6 +229,57 @@
     if (segs.length) requestAnimationFrame(() => requestAnimationFrame(() => segs.forEach((el) => {
       el.style.flexGrow = el.dataset.to; prevCounts["bar-" + el.dataset.grow] = +el.dataset.to;
     })));
+  }
+
+  // Canvas confetti burst for the "Label removed" moment.
+  function confettiBurst() {
+    if (reduceMotion.matches) return;
+    const canvas = document.createElement("canvas");
+    canvas.className = "confetti-canvas";
+    canvas.setAttribute("aria-hidden", "true");
+    $root.appendChild(canvas);
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(dpr, dpr);
+    const colors = ["#c8263a", "#ef8a96", "#f7c3cb", "#8e1b2d", "#ffffff", "#f3aab4"];
+    const medal = $app.querySelector(".medal")?.getBoundingClientRect();
+    const mx = medal ? medal.left + medal.width / 2 - rect.left : rect.width / 2;
+    const my = medal ? medal.top + medal.height / 2 - rect.top : rect.height / 3;
+    const parts = [];
+    const add = (x, y, angle, spread, speed, n) => {
+      for (let i = 0; i < n; i++) {
+        const a = angle + (Math.random() - 0.5) * spread, v = speed * (0.55 + Math.random() * 0.6);
+        parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, w: 6 + Math.random() * 6, h: 4 + Math.random() * 8,
+          rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.3, tilt: Math.random() * Math.PI, round: Math.random() < 0.25,
+          color: colors[(Math.random() * colors.length) | 0], life: 0, ttl: 110 + Math.random() * 70 });
+      }
+    };
+    const up = -Math.PI / 2, scale = Math.min(1, rect.width / 500) * 0.5 + 0.5;
+    add(mx, my, up, Math.PI * 1.1, 13 * scale, 90);                          // from the medal
+    add(0, rect.height * 0.75, -Math.PI / 3.2, 0.7, 17 * scale, 45);         // left cannon
+    add(rect.width, rect.height * 0.75, -Math.PI + Math.PI / 3.2, 0.7, 17 * scale, 45); // right cannon
+    const frame = () => {
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      let alive = 0;
+      for (const p of parts) {
+        if (p.life++ > p.ttl) continue;
+        alive++;
+        p.vx *= 0.985; p.vy = p.vy * 0.985 + 0.28;
+        p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.tilt += 0.12;
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, (p.ttl - p.life) / 30);
+        ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        if (p.color === "#ffffff") { ctx.strokeStyle = "rgba(142,27,45,.25)"; ctx.lineWidth = 1; }
+        if (p.round) { ctx.beginPath(); ctx.arc(0, 0, p.w / 2.4, 0, Math.PI * 2); ctx.fill(); }
+        else { const h = p.h * Math.abs(Math.cos(p.tilt)); ctx.fillRect(-p.w / 2, -h / 2, p.w, h); }
+        ctx.restore();
+      }
+      if (alive) requestAnimationFrame(frame); else canvas.remove();
+    };
+    requestAnimationFrame(frame);
   }
 
   /* ---------- sheet + toast ---------- */
@@ -468,7 +519,7 @@
     const colors = ["#c8263a", "#ef8a96", "#ffffff", "#8e1b2d"];
     const confetti = Array.from({ length: 12 }, (_, i) => {
       const w = i % 3 === 0 ? 22 : 14, h = i % 3 === 0 ? 8 : 14;
-      return `<span class="confetti" style="left:${5 + ((i * 37) % 90)}%;top:${8 + ((i * 53) % 70)}%;width:${w}px;height:${h}px;background:${colors[i % 4]};rotate:${i * 33}deg;animation-delay:${(i % 6) * 0.06}s,${0.9 + (i % 5) * 0.3}s"></span>`;
+      return `<span class="confetti" style="left:${14 + ((i * 37) % 80)}%;top:${16 + ((i * 53) % 62)}%;width:${w}px;height:${h}px;background:${colors[i % 4]};rotate:${i * 33}deg;animation-delay:${(i % 6) * 0.06}s,${0.9 + (i % 5) * 0.3}s"></span>`;
     }).join("");
     const scissors = `<svg viewBox="0 0 120 120" width="120" height="120" aria-hidden="true">
       <path d="M40 30c14-10 30 4 46-6l10 12c-16 10-32-4-46 6z" fill="#e5302a" stroke="#1a0b0d" stroke-width="3" stroke-linejoin="round"/>
@@ -479,7 +530,7 @@
       <circle cx="46" cy="98" r="11" fill="#fff" stroke="#1a0b0d" stroke-width="3.5"/><circle cx="46" cy="98" r="5" fill="none" stroke="#1a0b0d" stroke-width="2.5"/>
       <circle cx="66" cy="66" r="2.5" fill="#1a0b0d"/></svg>`;
     const sub = mine ? `Nice work. That's your ${ordinal(mine)} in the last 30 days.` : "Nice work. The allergy label can come off the chart.";
-    return `<div class="screen">
+    return `<div class="screen removed">
       <section class="celebrate">
         ${confetti}
         <a class="circle-btn close" href="#/" aria-label="Close">${ic("x")}</a>
@@ -495,9 +546,10 @@
       <div class="board">
         ${lb.top.map(([rank, doc, n]) => `<div class="board-row ${doc === ME ? "me" : ""}"><span class="rank ${rank <= 3 ? "r" + rank : ""}">${rank}</span><span class="n">${doc === ME ? "You" : esc(doc)}</span><span>${n}</span></div>`).join("")}
       </div>
-      <div class="study"><span class="ico">${ic("flask")}</span><div><b>You're part of the research study</b><p>Every challenge you log feeds the Mater de-labelling study. NCHDs taking part will be added as researchers.</p></div></div>
-      <div style="height:16px"></div>
-      <a class="btn primary" href="#/">Done</a>
+      <div class="dock">
+        <div class="study"><span class="ico">${ic("flask")}</span><div><b>You're part of the research study</b><p>Every challenge you log feeds the Mater de-labelling study. NCHDs taking part will be added as researchers.</p></div></div>
+        <a class="btn primary" href="#/">Done</a>
+      </div>
     </div>`;
   }
 
@@ -657,7 +709,8 @@
   }
   const resetScroll = () => { window.scrollTo(0, 0); $app.scrollTop = 0; };
   const $statusbar = document.querySelector(".statusbar");
-  $app.addEventListener("scroll", () => $statusbar.classList.toggle("solid", $app.scrollTop > 4), { passive: true });
+  // Capture phase so screens that scroll internally (Label removed) also update the status bar.
+  $app.addEventListener("scroll", (e) => $statusbar.classList.toggle("solid", e.target.scrollTop > 4), { capture: true, passive: true });
 
   let lastPath = location.hash;
   window.addEventListener("hashchange", () => {
@@ -671,6 +724,7 @@
       prevCounts = {};
       render();
       if (changed) { resetScroll(); $statusbar.classList.remove("solid"); stagger(); }
+      if (changed && routeName(location.hash) === "removed") setTimeout(confettiBurst, 380);
     }, to >= from ? "fwd" : "back");
   });
 
