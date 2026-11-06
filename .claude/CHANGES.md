@@ -1,6 +1,6 @@
 # Change Log
 
-## 2026-11-06 — Share card
+## 2026-11-06 — Share card (reviewed and confirmed for push)
 - Add share.jpg (sticker sheet, 1200×630, 187 KB) as the link preview image
 - Open Graph and Twitter card tags in index.html (title, description, image with alt text, canonical URL) so delabel.materlabs.ie shows the card in WhatsApp, Slack, iMessage, LinkedIn, X
 
