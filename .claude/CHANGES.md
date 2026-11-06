@@ -1,6 +1,6 @@
 # Change Log
 
-## 2026-11-06 — Desktop phone frame
+## 2026-11-06 — Desktop phone frame (reviewed and confirmed for push)
 - On desktop (≥800px wide), phone screens sit in a phone frame (bezel, Dynamic Island, live clock status bar) on a dark warm gradient backdrop
 - Wide screens (≥1100px) add an intro panel beside the phone with "Open dashboard" / "App home" links
 - Dashboard stays full width (its own desktop layout); phones and narrow windows unchanged
