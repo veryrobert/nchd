@@ -50,6 +50,7 @@
 
   /* ---------- helpers ---------- */
   const $app = document.getElementById("app");
+  const $root = document.getElementById("screen-root");
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const pad = (n) => String(n).padStart(2, "0");
   const hm = (t) => { const d = new Date(t); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
@@ -158,7 +159,7 @@
   /* ---------- result pills ---------- */
   function pill(r, short) {
     switch (r.status) {
-      case "observing": return `<span class="pill obs">${short ? "Observing" : "In observation"}</span>`;
+      case "observing": return `<span class="pill watching">${short ? "Observing" : "In observation"}</span>`;
       case "negative": return `<span class="pill neg">${short ? "Negative" : "Negative · de-labelled"}</span>`;
       case "positive": {
         const rx = r.reaction === "anaphylaxis" ? "anaphylaxis" : "mild rash";
@@ -237,7 +238,7 @@
     el.className = "sheet-backdrop";
     el.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div>`;
     el.addEventListener("click", (e) => { if (e.target === el || e.target.closest("[data-close]")) closeSheet(); });
-    document.body.appendChild(el);
+    $root.appendChild(el);
     document.body.style.overflow = "hidden";
     onMount && onMount(el);
     return el;
@@ -256,7 +257,7 @@
     document.querySelectorAll(".toast").forEach((n) => n.remove());
     const t = document.createElement("div");
     t.className = "toast"; t.textContent = msg; t.setAttribute("role", "status");
-    document.body.appendChild(t);
+    $root.appendChild(t);
     clearTimeout(toastT);
     toastT = setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 200); }, 2600);
   }
@@ -423,6 +424,8 @@
 
   function tick() {
     const now = Date.now();
+    const clock = document.querySelector(".statusbar .clock");
+    if (clock) clock.textContent = hm(now);
     document.querySelectorAll("[data-left]").forEach((el) => {
       if (el.querySelector(".pill")) return;
       const left = Math.ceil((+el.dataset.left - now) / MIN);
@@ -648,7 +651,13 @@
       default: return NotFound();
     }
   }
-  function render() { $app.innerHTML = route(); tick(); animateCounts(); }
+  function render() {
+    document.documentElement.classList.toggle("phone-route", routeName(location.hash) !== "dashboard");
+    $app.innerHTML = route(); tick(); animateCounts();
+  }
+  const resetScroll = () => { window.scrollTo(0, 0); $app.scrollTop = 0; };
+  const $statusbar = document.querySelector(".statusbar");
+  $app.addEventListener("scroll", () => $statusbar.classList.toggle("solid", $app.scrollTop > 4), { passive: true });
 
   let lastPath = location.hash;
   window.addEventListener("hashchange", () => {
@@ -661,7 +670,7 @@
     transition("route", () => {
       prevCounts = {};
       render();
-      if (changed) { window.scrollTo(0, 0); stagger(); }
+      if (changed) { resetScroll(); $statusbar.classList.remove("solid"); stagger(); }
     }, to >= from ? "fwd" : "back");
   });
 
