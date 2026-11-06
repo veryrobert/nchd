@@ -1,6 +1,6 @@
 # Change Log
 
-## 2026-11-06 — Confetti and svh-safe research study dock
+## 2026-11-06 — Confetti and svh-safe research study dock (reviewed and confirmed for push)
 - Canvas confetti burst when a negative result is recorded (Label removed): from the medal plus two side cannons, brand colours, stays inside the phone frame, cleans up after ~4s, skipped under reduced motion
 - Screen heights use svh (small viewport) instead of dvh so nothing sits behind mobile browser bars
 - Label removed is exactly 100svh tall and scrolls internally; the research study card and Done button are docked to the bottom and slide up after the confetti
